@@ -1,0 +1,9 @@
+'use client';
+import type { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { BookOpen, BarChart3, Settings2, ArrowUpRight, Feather } from 'lucide-react';
+import { Brand } from './ui';
+export default function Shell({ children }: {
+    children: ReactNode;
+}) { const path = usePathname(); return <SidebarProvider style={{ '--sidebar-width': '15rem' } as React.CSSProperties}><Sidebar className="nova-sidebar"><SidebarHeader><Brand /></SidebarHeader><SidebarContent><SidebarGroup><SidebarGroupLabel>ESPACIO DE AUTOR</SidebarGroupLabel><SidebarMenu>{[['/proyectos', 'Mis proyectos', BookOpen], ['/estadisticas', 'Estadísticas', BarChart3], ['/ajustes', 'Configuración', Settings2]].map(([href, label, Icon]: any) => <SidebarMenuItem key={href}><SidebarMenuButton asChild isActive={path.startsWith(href)}><a href={href}><Icon /><span>{label}</span></a></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroup><div className="sidebar-note"><Feather size={22}/><p>La obra es tuya.<br />El espacio, también.</p><small>Escribe, organiza y conserva cada paso.</small></div></SidebarContent><SidebarFooter><a href="/como-funciona" className="help-link">Cómo funciona <ArrowUpRight size={15}/></a><span className="account-label">Espacio privado · NOVA</span></SidebarFooter></Sidebar><SidebarInset><header className="workspace-top"><div><SidebarTrigger aria-label="Abrir o cerrar menú"/><span>Tu espacio de escritura</span></div><a href="/ajustes" className="connection-tag">IA sin conectar</a></header><main className="workspace-main">{children}</main></SidebarInset></SidebarProvider>; }
