@@ -2,9 +2,21 @@
 
 NOVA es un espacio de escritura con páginas para proyectos, voz, fuentes y perfil. El frontend y el backend funcionan en Sites; la asistencia con LLM todavía no está conectada.
 
-Para usarlo: abre el sitio, entra a **Inicio**, configura tu nombre y tu voz, crea un proyecto y añade un capítulo. **Guardar** crea una versión en tu cuenta. La copia local de recuperación protege frente a cierres accidentales, pero no reemplaza ese botón.
+Para usarlo: abre el sitio, inicia sesión o crea tu usuario y entra a **Inicio**, configura tu nombre y tu voz, crea un proyecto y añade un capítulo. **Guardar** crea una versión en tu cuenta. La copia local de recuperación protege frente a cierres accidentales, pero no reemplaza ese botón.
 
 Para continuar el desarrollo desde GitHub, abre la carpeta `nova/` del repositorio. Aquí están la aplicación, el backend, las migraciones y las pruebas. Los detalles técnicos y la conexión futura del proveedor están debajo.
+
+## Cuenta propia e interfaz renovada
+
+NOVA ahora tiene `/login`, `/registro`, `/recuperar` y `/seguridad`. El registro utiliza **usuario y contraseña**, sin pedir correo. Guarda el código de respaldo que aparece al registrarte.
+
+**Si ya tenías proyectos:** entra primero con ChatGPT y configura usuario/contraseña desde Seguridad. Así conservas tu espacio original. Crear otra cuenta desde cero produce un espacio nuevo.
+
+El acceso con contraseña funciona en el backend sin un proveedor externo de autenticación. Mientras el Site esté privado, su capa de acceso seguirá exigiendo ChatGPT antes de mostrar NOVA: abrir el registro externo requiere cambiar la audiencia del Site a público, conservando protegidos los proyectos. Esa apertura no forma parte de una mera publicación de código.
+
+Se añadieron entrada de marca, transiciones breves, diálogos de recuperación/seguridad, guía rápida, estados de sesión y Ctrl+S/⌘S en el editor. Las animaciones respetan la preferencia de movimiento reducido. No hay GIFs pesados ni reproducción permanente en el editor.
+
+Detalles, seguridad y migración: [docs/authentication.md](docs/authentication.md). El apartado técnico anterior que sigue debajo describe la versión inicial; la autenticación de este documento reemplaza el acceso directo mediante cabeceras.
 
 ## Actualización del piloto
 
@@ -30,7 +42,7 @@ Private, multi-page editorial workspace. Runs on Vinext/React and Cloudflare Wor
 - `/estadisticas`: saved words, chapters, sources, memory, goals and 30-day revision counts.
 - `/ajustes`: account/storage/provider state.
 
-Private Site dispatch authenticates visitors. API routes require `oai-authenticated-user-id`; all resource reads and writes check project ownership. Browser writes require matching Origin. Do not expose this Worker outside the trusted Sites dispatcher without replacing header-based identity with verified authentication.
+NOVA authenticates visitors using server-side sessions. All resource reads and writes check project ownership. Sites dispatch may add a separate audience gate. Browser writes require matching Origin. The optional ChatGPT callback depends on trusted Sites dispatch and is disabled outside `.chatgpt.site`; native username/password does not trust those headers.
 
 ## Persistence
 
@@ -81,7 +93,7 @@ Keep the supplied lockfile. `npm run db:generate` generates new immutable migrat
 
 - `/perfil` administra nombre visible, ocupación, biografía, tipografía y tamaño del manuscrito y meta inicial de proyectos. D1 conserva estos datos por usuario con control de versión; no modifica la identidad de ChatGPT ni el perfil de voz del autor.
 - `GET/PUT /api/nova/account` obtiene/actualiza la cuenta autenticada. El servidor obtiene el correo y el nombre de identidad de las cabeceras de sesión, no del formulario. Los valores inválidos devuelven 400 y los guardados obsoletos, 409.
-- El menú de usuario y la barra lateral incluyen el cierre de sesión real mediante navegación superior a `/signout-with-chatgpt?return_to=%2F`, gestionada por el dispatcher. No se guarda ni se simula una sesión en localStorage. La política de acceso privado del Site sigue vigente; después de salir, el acceso puede volver a solicitar autenticación.
+- El menú y la barra lateral cierran la sesión de NOVA mediante POST. La sesión es una cookie HttpOnly; no se simula en localStorage. La política de acceso del Site es una capa aparte.
 - El contexto de cuenta compartido aplica tipografía/tamaño al manuscrito y la meta al formulario de proyectos nuevos. La biografía no se envía automáticamente al contexto del LLM.
 - `/ajustes` organiza cuenta, personalización, funciones y exportación. `/ayuda` documenta el guardado manual, historial, formatos, conflictos y cierre de sesión. Hay un estado de desconexión y una frontera de errores del espacio de trabajo.
 - La biblioteca conserva sus acciones y añade ordenación por actualización, título o palabras. La interfaz usa una presentación de lista adaptable a móvil con cifras obtenidas de los proyectos reales.

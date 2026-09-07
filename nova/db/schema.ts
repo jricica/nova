@@ -34,3 +34,16 @@ export const memories = sqliteTable('memories', {
 export const pilotFeedback = sqliteTable('pilot_feedback', {
     id: text('id').primaryKey(), owner: text('owner').notNull(), data: text('data').notNull(), created: text('created').notNull(),
 }, t => [index('pilot_feedback_owner').on(t.owner, t.created)]);
+
+export const authUsers = sqliteTable('auth_users', {
+    id: text('id').primaryKey(), username: text('username').unique(), password: text('password'),
+    name: text('name').notNull(), email: text('email').notNull().default(''),
+    chatgpt: text('chatgpt').unique(), recovery: text('recovery'), created: integer('created').notNull(),
+});
+export const authSessions = sqliteTable('auth_sessions', {
+    token: text('token').primaryKey(), user: text('user').notNull().references(() => authUsers.id, {onDelete:'cascade'}),
+    expires: integer('expires').notNull(), created: integer('created').notNull(),
+}, t => [index('auth_sessions_user').on(t.user)]);
+export const authLimits = sqliteTable('auth_limits', {
+    key: text('key').primaryKey(), count: integer('count').notNull(), expires: integer('expires').notNull(),
+});

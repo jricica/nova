@@ -6,10 +6,13 @@ import {readFile,readdir,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 
 test('NOVA API: ownership, persistence, versions, source retrieval, metrics and deletion',async()=>{
- const built=await build({stdin:{contents:"import {handleApi} from './lib/api-core'; export default {fetch:(req,env)=>handleApi(req,env)}",resolveDir:process.cwd(),sourcefile:'test-worker.ts'},bundle:true,write:false,format:'esm',platform:'browser',target:'es2022'});
- const mf=new Miniflare({modules:true,script:built.outputFiles[0].text,compatibilityDate:'2026-04-01',d1Databases:['DB'],r2Buckets:['BUCKET']});
+ const built=await build({stdin:{contents:"import {handleApi} from './lib/api-core'; export default {fetch:(req,env)=>handleApi(req,env)}",resolveDir:process.cwd(),sourcefile:'test-worker.ts'},bundle:true,write:false,format:'esm',platform:'browser',target:'es2022',external:['node:crypto']});
+ const mf=new Miniflare({modules:true,script:built.outputFiles[0].text,compatibilityDate:'2026-04-01',compatibilityFlags:['nodejs_compat'],d1Databases:['DB'],r2Buckets:['BUCKET']});
  try{const db=await mf.getD1Database('DB');for(const file of (await readdir('drizzle')).filter(x=>x.endsWith('.sql'))){for(const sql of (await readFile('drizzle/'+file,'utf8')).split('--> statement-breakpoint').filter(x=>x.trim()))await db.prepare(sql).run();}
- async function call(p,method='GET',data,owner='alice',origin='https://nova.test'){const headers={'oai-authenticated-user-id':owner,'oai-authenticated-user-email':owner+'@example.test',origin};if(data)headers['content-type']='application/json';const response=await mf.dispatchFetch('https://nova.test/api/nova/'+p,{method,headers,body:data?JSON.stringify(data):undefined});const text=await response.text();let body;try{body=JSON.parse(text)}catch{body=text}return {status:response.status,body};}
+ const {createHash}=await import('node:crypto');
+ const sessionTokens={alice:'a'.repeat(64),bob:'b'.repeat(64)};
+ for(const who of ['alice','bob']){await db.prepare('INSERT INTO auth_users(id,name,email,created) VALUES(?,?,?,?)').bind(who,who,who+'@example.test',Date.now()).run();await db.prepare('INSERT INTO auth_sessions(token,user,expires,created) VALUES(?,?,?,?)').bind(createHash('sha256').update(sessionTokens[who]).digest('hex'),who,Date.now()+86400000,Date.now()).run()}
+ async function call(p,method='GET',data,owner='alice',origin='https://nova.test'){const headers={'oai-authenticated-user-id':owner,'oai-authenticated-user-email':owner+'@example.test',origin,cookie:sessionTokens[owner]?'__Host-nova_session='+sessionTokens[owner]:''};if(data)headers['content-type']='application/json';const response=await mf.dispatchFetch('https://nova.test/api/nova/'+p,{method,headers,body:data?JSON.stringify(data):undefined});const text=await response.text();let body;try{body=JSON.parse(text)}catch{body=text}return {status:response.status,body};}
  assert.equal((await call('projects','GET',undefined,'')).status,401);
  assert.equal((await call('projects','POST',{title:'Bad',kind:'novela'},'alice','https://evil.test')).status,403);
  assert.equal((await call('projects','POST',{title:'',kind:'novela'})).status,400);

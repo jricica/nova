@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { resolveUser } from './auth-core';
 import { writingProvider } from './ai-provider';
 import { wordCount, normalize, splitText } from './text';
 import { authorDataSchema, emptyAuthor, profileRules } from './author-profile';
@@ -39,9 +40,10 @@ catch {
 } }
 export async function handleApi(req: Request, services: Services) {
     try {
-        const user = req.headers.get('oai-authenticated-user-id');
+        const identityUser = await resolveUser(req.headers,services.DB);
+        const user = identityUser?.id;
         if (!user)
-            throw new ApiError(401, 'Inicia sesión con ChatGPT para acceder a tu espacio.');
+            throw new ApiError(401, 'Inicia sesión en NOVA para acceder a tu espacio.');
         const url = new URL(req.url), method = req.method;
         if (!['GET', 'HEAD'].includes(method)) {
             const origin = req.headers.get('origin');
@@ -80,11 +82,7 @@ export async function handleApi(req: Request, services: Services) {
             }
         }
         if (parts[0] === 'account' && parts.length === 1) {
-            let fullName: string | null = null;
-            if (req.headers.get('oai-authenticated-user-full-name-encoding') === 'percent-encoded-utf-8') {
-                try { fullName = decodeURIComponent(req.headers.get('oai-authenticated-user-full-name') || '') || null; } catch { /* Optional identity claim. */ }
-            }
-            const identity = { email: req.headers.get('oai-authenticated-user-email') || '', fullName };
+            const identity = { email: identityUser!.email, fullName: identityUser!.fullName };
             if (method === 'GET') {
                 const row = await q('SELECT data,version,updated FROM accounts WHERE owner=?', user).first();
                 return json({ data: row ? accountSchema.parse(JSON.parse(row.data)) : defaultAccount(), version: row?.version || 0, updated: row?.updated || null, identity });
@@ -148,7 +146,7 @@ export async function handleApi(req: Request, services: Services) {
             }
         }
         if (parts[0] === 'status' && method === 'GET')
-            return json({ storage: true, ai: { available: writingProvider.available, reason: writingProvider.available ? 'Proveedor conectado' : 'Proveedor pendiente de integración' }, user: { email: req.headers.get('oai-authenticated-user-email') || '' } });
+            return json({ storage: true, ai: { available: writingProvider.available, reason: writingProvider.available ? 'Proveedor conectado' : 'Proveedor pendiente de integración' }, user: { email: identityUser!.email, username: identityUser!.username } });
         if (parts[0] === 'stats' && method === 'GET') {
             const [projects, chapters, sources, memories, activity] = await Promise.all([
                 all('SELECT p.id,p.title,p.kind,p.goal,p.archived,COALESCE((SELECT SUM(words) FROM chapters WHERE project=p.id),0) words,(SELECT COUNT(*) FROM chapters WHERE project=p.id) chapters FROM projects p WHERE owner=? ORDER BY updated DESC', user),

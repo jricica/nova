@@ -1,6 +1,6 @@
 import Shell from '@/components/nova/shell';
-import { requireChatGPTUser } from '@/app/chatgpt-auth';
+import { requireNovaUser } from '@/lib/auth-server';
 export const dynamic = 'force-dynamic';
 export default async function Layout({ children }: {
     children: React.ReactNode;
-}) { const user = await requireChatGPTUser('/proyectos'); return <Shell user={user}>{children}</Shell>; }
+}) { const user = await requireNovaUser(); return <Shell user={user}>{children}</Shell>; }

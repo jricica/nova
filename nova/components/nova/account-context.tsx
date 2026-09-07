@@ -3,6 +3,8 @@ import { createContext, useContext, type ReactNode } from 'react';
 import { useData } from './ui';
 import { defaultAccount, type AccountRecord } from '@/lib/account';
 type Session = {
+    id: string;
+    username?: string | null;
     email: string;
     fullName: string | null;
     displayName: string;

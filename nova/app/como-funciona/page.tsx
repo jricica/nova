@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { MarketingNav, MarketingFooter } from '@/components/nova/marketing';
 import { ArrowUpRight } from 'lucide-react';
 export const metadata = { title: 'Cómo funciona · NOVA' };
