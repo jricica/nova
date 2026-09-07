@@ -3,13 +3,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { BookOpen, BarChart3, Settings2, Feather, UserRound, CircleHelp, LogOut, ChevronDown, ChevronRight, Library, WifiOff } from 'lucide-react';
+import { BookOpen, BarChart3, Settings2, Feather, UserRound, CircleHelp, LogOut, ChevronDown, ChevronRight, Library, WifiOff, House, MessageSquare } from 'lucide-react';
 import { Brand } from './ui';
 import { AccountProvider, useAccount } from './account-context';
 import { initials } from '@/lib/account';
 import type { ChatGPTUser } from '@/app/chatgpt-auth';
-const workspaceLinks = [{ href: '/proyectos', label: 'Proyectos', Icon: BookOpen }, { href: '/mi-voz', label: 'Mi voz', Icon: Feather }, { href: '/mi-memoria', label: 'Mi memoria', Icon: Library }, { href: '/estadisticas', label: 'Estadísticas', Icon: BarChart3 }];
-const accountLinks = [{ href: '/perfil', label: 'Perfil', Icon: UserRound }, { href: '/ajustes', label: 'Configuración', Icon: Settings2 }, { href: '/ayuda', label: 'Ayuda', Icon: CircleHelp }];
+const workspaceLinks = [{ href: '/inicio', label: 'Inicio', Icon: House }, { href: '/proyectos', label: 'Proyectos', Icon: BookOpen }, { href: '/mi-voz', label: 'Mi voz', Icon: Feather }, { href: '/mi-memoria', label: 'Mi memoria', Icon: Library }, { href: '/estadisticas', label: 'Estadísticas', Icon: BarChart3 }];
+const accountLinks = [{ href: '/perfil', label: 'Perfil', Icon: UserRound }, { href: '/ajustes', label: 'Configuración', Icon: Settings2 }, { href: '/ayuda', label: 'Ayuda', Icon: CircleHelp }, { href: '/feedback', label: 'Feedback del piloto', Icon: MessageSquare }];
 export default function Shell({ children, user }: {
     children: ReactNode;
     user: ChatGPTUser;

@@ -13,6 +13,16 @@ test('NOVA API: ownership, persistence, versions, source retrieval, metrics and 
  assert.equal((await call('projects','GET',undefined,'')).status,401);
  assert.equal((await call('projects','POST',{title:'Bad',kind:'novela'},'alice','https://evil.test')).status,403);
  assert.equal((await call('projects','POST',{title:'',kind:'novela'})).status,400);
+ assert.deepEqual((await call('overview')).body.steps,[false,false,false,false]);
+ const feedback={id:crypto.randomUUID(),usefulness:4,task:'Organizar un ensayo',friction:'No encontré el historial',improvement:'Mostrar el historial junto al guardado'};
+ assert.equal((await call('feedback','POST',feedback)).status,201);
+ assert.equal((await call('feedback','POST',feedback)).status,200);
+ assert.equal((await call('feedback')).body.length,1);
+ assert.equal((await call('feedback','GET',undefined,'bob')).body.length,0);
+ assert.equal((await call('feedback','POST',{...feedback,id:crypto.randomUUID(),usefulness:6})).status,400);
+ assert.equal((await call('feedback','POST',feedback,'alice','https://evil.test')).status,403);
+ assert.equal((await call('feedback','GET',undefined,'')).status,401);
+
 
  const account=(await call('account')).body;assert.equal(account.version,0);assert.equal(account.identity.email,'alice@example.test');assert.equal(account.data.typography,'serif');
  const accountDraft={...account.data,displayName:'Autora Alice',occupation:'Investigadora',bio:'Escribo ensayos.',typography:'sans',textSize:'large',defaultGoal:12000};
@@ -53,6 +63,7 @@ test('NOVA API: ownership, persistence, versions, source retrieval, metrics and 
  assert.equal((await call('author-samples/'+sample.body.id,'GET',undefined,'bob')).status,404);
  assert.equal((await call('author-samples/'+sample.body.id,'DELETE',undefined,'bob')).status,404);
  const voiceContext=(await call(base+'/context','POST',{chapterId:cid,action:'rewrite',instruction:'Reescribir'})).body.context.author;
+ const visibleVoice=(await call(base+'/voice')).body;assert(visibleVoice.rules.includes('Estudiantes'));assert.equal(visibleVoice.preferences.length,1);assert.equal(visibleVoice.samples.length,1);assert.equal((await call(base+'/voice','GET',undefined,'bob')).status,404);assert.deepEqual((await call('overview')).body.steps,[true,true,true,true]);
  assert(voiceContext.rules.includes('Estudiantes'));assert.equal(voiceContext.preferences.length,1);assert.equal(voiceContext.examples[0].content,'Mi forma de narrar una historia.');
  assert.equal((await call('author-samples/'+sample.body.id,'DELETE')).status,200);
  assert.equal((await call('author-samples/'+sample.body.id)).status,404);
@@ -69,4 +80,17 @@ test('NOVA API: ownership, persistence, versions, source retrieval, metrics and 
  assert.equal((await call(base)).status,404);assert.equal((await call('stats')).body.words,0);
  assert.equal((await db.prepare('SELECT COUNT(*) n FROM chunks').first()).n,0);assert.equal((await db.prepare('SELECT COUNT(*) n FROM revisions').first()).n,0);assert.equal((await (await mf.getR2Bucket('BUCKET')).list()).objects.length,0);
  }finally{await mf.dispose()}
+});
+
+
+test('Local recovery preserves content, rejects expired/corrupt records, bounds storage and reports quota failure',async()=>{
+ const built=await build({entryPoints:['lib/draft-recovery.ts'],bundle:true,write:false,format:'esm',platform:'node'});
+ const {draftKey,readDraft,writeDraft,removeDraft}=await import('data:text/javascript;base64,'+Buffer.from(built.outputFiles[0].text).toString('base64'));
+ const map=new Map();const storage={get length(){return map.size},key:i=>[...map.keys()][i]??null,getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};
+ const key=draftKey('alice@example.test','project','chapter');const d={title:'Mi capítulo',content:'Un texto todavía sin guardar.',version:3,updated:Date.now()};
+ assert(writeDraft(storage,key,d));assert.deepEqual(readDraft(storage,key),d);assert.equal(readDraft(storage,draftKey('bob@example.test','project','chapter')),null);
+ storage.setItem(key,JSON.stringify({...d,updated:Date.now()-8*86400000}));assert.equal(readDraft(storage,key),null);assert.equal(storage.getItem(key),null);
+ storage.setItem(key,'broken');assert.equal(readDraft(storage,key),null);removeDraft(storage,key);
+ for(let i=0;i<25;i++)assert(writeDraft(storage,draftKey('alice','project',String(i)),{...d,updated:Date.now()+i}));assert.equal(storage.length,20);
+ assert.equal(writeDraft({...storage,setItem(){throw new Error('QuotaExceededError')}},key,d),false);
 });

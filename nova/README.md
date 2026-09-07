@@ -1,4 +1,23 @@
-# NOVA
+# NOVA — guía rápida
+
+NOVA es un espacio de escritura con páginas para proyectos, voz, fuentes y perfil. El frontend y el backend funcionan en Sites; la asistencia con LLM todavía no está conectada.
+
+Para usarlo: abre el sitio, entra a **Inicio**, configura tu nombre y tu voz, crea un proyecto y añade un capítulo. **Guardar** crea una versión en tu cuenta. La copia local de recuperación protege frente a cierres accidentales, pero no reemplaza ese botón.
+
+Para continuar el desarrollo desde GitHub, abre la carpeta `nova/` del repositorio. Aquí están la aplicación, el backend, las migraciones y las pruebas. Los detalles técnicos y la conexión futura del proveedor están debajo.
+
+## Actualización del piloto
+
+- `/inicio`: cuatro pasos calculados con datos reales y proyectos recientes. El progreso persiste porque depende del perfil, la aprobación de voz, los proyectos y los capítulos guardados.
+- `/feedback`: respuestas privadas en D1, validación, límite de 50 por usuario e idempotencia por identificador. No envía emails ni crea tickets externos. El propietario puede analizar las respuestas mediante acceso administrativo a la base; no hay panel global de feedback expuesto a participantes.
+- `/acceso`: instrucciones del acceso autenticado. No modifica la lista de permisos de Sites. Hace falta habilitar la cuenta del cliente antes de compartirle el piloto.
+- El editor ofrece recuperar, descargar o descartar una copia local antes de seguir editando. Mantiene el control de versión del servidor y muestra los errores de guardado. Las copias duran hasta 7 días, con máximo 20 por navegador; la limpieza ocurre al leer/escribir copias, no mediante borrado programado. Pueden permanecer después de cerrar sesión. La cuenta en la clave evita mezclar usuarios en la interfaz, pero no cifra el almacenamiento del dispositivo.
+- El contexto desplegable de proyecto muestra exclusivamente el perfil aprobado, las preferencias activas generales/de ese proyecto y hasta dos muestras de su género. Las instrucciones de proyecto se muestran aparte. No se ejecuta un modelo.
+- El tema `app/pilot.css` añade inicio editorial, navegación oscura y distribución adaptable sin quitar las rutas existentes.
+- Migración nueva: `0003_cheerful_sally_floyd.sql`. No modificar migraciones ya aplicadas.
+- QA: pruebas de API D1/R2, recuperación local y TypeScript. La revisión de navegador se intentó pero el entorno bloqueó la vista previa; desktop, móvil y logout requieren comprobación visual antes de presentar al cliente.
+
+## Documentación técnica
 
 Private, multi-page editorial workspace. Runs on Vinext/React and Cloudflare Workers with D1 metadata and R2 text sources. The existing Sites project identity is retained in `.openai/hosting.json`.
 

@@ -58,6 +58,27 @@ export async function handleApi(req: Request, services: Services) {
             throw new ApiError(404, 'Proyecto no encontrado.'); return p; }
         async function chapter(pid: string, cid: string) { await project(pid); const c = await q('SELECT * FROM chapters WHERE id=? AND project=?', cid, pid).first(); if (!c)
             throw new ApiError(404, 'Capítulo no encontrado.'); return c; }
+        if (parts[0] === 'overview' && parts.length === 1 && method === 'GET') {
+            const [account, author, recent, saved] = await Promise.all([
+                q('SELECT data FROM accounts WHERE owner=?', user).first(),
+                q('SELECT confirmed FROM author_profiles WHERE owner=?', user).first(),
+                all('SELECT p.id,p.title,p.kind,p.updated,(SELECT COALESCE(SUM(words),0) FROM chapters WHERE project=p.id) words FROM projects p WHERE owner=? AND archived=0 ORDER BY updated DESC LIMIT 4', user),
+                q('SELECT COUNT(*) count FROM chapters c JOIN projects p ON p.id=c.project WHERE p.owner=? AND c.version>1', user).first(),
+            ]);
+            const count = await q('SELECT COUNT(*) count FROM projects WHERE owner=?', user).first();
+            return json({ steps: [!!(account && JSON.parse(account.data).displayName), !!author?.confirmed, count.count>0, saved.count>0], recent, aiAvailable: writingProvider.available });
+        }
+        if (parts[0] === 'feedback' && parts.length === 1) {
+            if (method === 'GET') return json(await all('SELECT id,data,created FROM pilot_feedback WHERE owner=? ORDER BY created DESC LIMIT 50', user));
+            if (method === 'POST') {
+                const b = z.object({ id: z.string().uuid(), usefulness: z.number().int().min(1).max(5), task: z.string().trim().min(3).max(1000), friction: z.string().trim().max(2000), improvement: z.string().trim().min(3).max(2000) }).parse(await body(req));
+                const previous = await q('SELECT id FROM pilot_feedback WHERE id=? AND owner=?', b.id, user).first();
+                if (previous) return json({ id: previous.id });
+                const result = await q('INSERT OR IGNORE INTO pilot_feedback(id,owner,data,created) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM pilot_feedback WHERE owner=?)<50', b.id, user, JSON.stringify(b), now(), user).run();
+                if (!result.meta.changes) throw new ApiError(409, 'No se pudo registrar. Límite: 50 respuestas por cuenta.');
+                return json({ id: b.id }, 201);
+            }
+        }
         if (parts[0] === 'account' && parts.length === 1) {
             let fullName: string | null = null;
             if (req.headers.get('oai-authenticated-user-full-name-encoding') === 'percent-encoded-utf-8') {
@@ -178,6 +199,13 @@ export async function handleApi(req: Request, services: Services) {
             }
         }
         const section = parts[2], item = parts[3];
+        if (section === 'voice' && method === 'GET') {
+            const row = await q('SELECT data,confirmed FROM author_profiles WHERE owner=?', user).first();
+            const data = row ? authorDataSchema.parse(JSON.parse(row.data)) : emptyAuthor();
+            const samples = await all('SELECT id,title,kind,words FROM author_samples WHERE owner=? AND kind=? ORDER BY created DESC LIMIT 2', user, p.kind);
+            return json({ confirmed: row?.confirmed || null, rules: row?.confirmed ? profileRules(data) : '', preferences: row?.confirmed ? data.memories.filter(m => m.enabled && (!m.project || m.project === pid)) : [], samples: row?.confirmed ? samples : [], projectRules: p.style, aiAvailable: writingProvider.available });
+        }
+
         if (section === 'chapters') {
             if (!item && method === 'POST') {
                 const count = await q('SELECT COUNT(*) n FROM chapters WHERE project=?', pid).first();

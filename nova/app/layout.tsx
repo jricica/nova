@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import './professional.css';
+import './pilot.css';
 import { Toaster } from '@/components/ui/sonner';
 export const metadata: Metadata = { title: 'NOVA — Tu obra. Tus fuentes. Tu voz.', description: 'Un espacio privado para escribir novelas, ensayos y libros académicos. Organiza tus manuscritos, guarda fuentes y conserva cada versión.', icons: { icon: '/favicon.svg' } };
 export default function RootLayout({ children }: {

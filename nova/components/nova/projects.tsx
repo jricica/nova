@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, ArrowRight, FileText, BookOpen } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ export default function Projects() {
     const { data, error, loading, reload } = useData('projects'), { preferences } = useAccount();
     const [search, setSearch] = useState(''), [filter, setFilter] = useState('active'), [order, setOrder] = useState('updated');
     const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [kind, setKind] = useState('novela'), [createError, setCreateError] = useState('');
+    useEffect(() => { if (new URLSearchParams(window.location.search).get('nuevo') === '1') setOpen(true); }, []);
     if (loading)
         return <Loading />;
     if (error)

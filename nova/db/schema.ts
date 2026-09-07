@@ -30,3 +30,7 @@ export const chunks = sqliteTable('chunks', {
 export const memories = sqliteTable('memories', {
     id: text('id').primaryKey(), project: text('project').notNull().references(() => projects.id, { onDelete: 'cascade' }), kind: text('kind').notNull(), title: text('title').notNull(), content: text('content').notNull(), date: text('date').notNull().default(''), updated: text('updated').notNull(),
 }, t => [index('memories_project').on(t.project)]);
+
+export const pilotFeedback = sqliteTable('pilot_feedback', {
+    id: text('id').primaryKey(), owner: text('owner').notNull(), data: text('data').notNull(), created: text('created').notNull(),
+}, t => [index('pilot_feedback_owner').on(t.owner, t.created)]);
