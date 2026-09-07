@@ -10,15 +10,13 @@ export function PasswordField({ label = 'Contraseña', name = 'password', newPas
     label?: string;
     name?: string;
     newPassword?: boolean;
-}) { const id = useId(); const [visible, setVisible] = useState(false); return <label htmlFor={id} className="auth-label">{label}<span className="auth-input"><LockKeyhole size={18}/><input id={id} name={name} type={visible ? 'text' : 'password'} autoComplete={newPassword ? 'new-password' : 'current-password'} minLength={newPassword ? 12 : 1} maxLength={128} required placeholder={newPassword ? 'Al menos 12 caracteres' : 'Tu contraseña'}/><button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={visible}>{visible ? <EyeOff size={19}/> : <Eye size={19}/>}</button></span></label>; }
-export function ChatGPTButton() { const [busy, setBusy] = useState(false); return <button className="auth-provider" disabled={busy} onClick={async () => { setBusy(true); try {
-    const d = await authApi('start-chatgpt');
-    window.location.assign(d.url);
+}) { const id = useId(); const [visible, setVisible] = useState(false); return <label htmlFor={id} className="auth-label">{label}<span className="auth-input"><LockKeyhole size={18}/><input id={id} aria-label={label} name={name} type={visible ? 'text' : 'password'} autoComplete={newPassword ? 'new-password' : 'current-password'} minLength={newPassword ? 12 : 1} maxLength={128} required placeholder={newPassword ? 'Al menos 12 caracteres' : 'Tu contraseña'}/><button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={visible}>{visible ? <EyeOff size={19}/> : <Eye size={19}/>}</button></span></label>; }
+export function ChatGPTButton() {
+    const [busy,setBusy]=useState(false),[supported,setSupported]=useState<boolean|null>(null);
+    useEffect(()=>{let live=true;fetch('/api/auth/me').then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{if(live)setSupported(!!d.capabilities?.chatgpt)}).catch(()=>{if(live)setSupported(false)});return()=>{live=false}},[]);
+    if(supported===false)return <p className="auth-footnote">¿Tu cuenta anterior usa ChatGPT? <a href="https://nova-escritura-jan.janricica.chatgpt.site/login">Entra desde el acceso original</a> y configura tu usuario y contraseña en Seguridad. Después podrás usarlos en este dominio.</p>;
+    return <button className="auth-provider" disabled={busy||supported===null} onClick={async()=>{setBusy(true);try{const d=await authApi('start-chatgpt');window.location.assign(d.url)}catch(e){toast.error((e as Error).message);setBusy(false)}}}>{busy?<LoaderCircle className="animate-spin" size={18}/>:<KeyRound size={18}/>} {supported===null?'Comprobando acceso…':'Continuar con ChatGPT'}</button>;
 }
-catch (e) {
-    toast.error((e as Error).message);
-    setBusy(false);
-} }}>{busy ? <LoaderCircle className="animate-spin" size={18}/> : <KeyRound size={18}/>}Continuar con ChatGPT</button>; }
 export function LogoutButton({ className = '', ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) { const [busy, setBusy] = useState(false); return <button {...props} type="button" className={className} disabled={busy} onClick={async (e) => { props.onClick?.(e); setBusy(true); try {
     await authApi('logout');
     window.location.assign('/login');

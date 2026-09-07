@@ -179,8 +179,9 @@ export async function handleApi(req: Request, services: Services) {
                 return json({ ...p, chapters, sources: sources.map(({ object_key, ...s }: any) => s), memories });
             }
             if (method === 'PATCH') {
-                const b = projectSchema.extend({ style: z.string().max(20000).default(''), sample: z.string().max(100000).default(''), archived: z.number().int().min(0).max(1).default(0) }).parse(await body(req));
-                await q('UPDATE projects SET title=?,kind=?,description=?,goal=?,style=?,sample=?,archived=?,updated=? WHERE id=? AND owner=?', b.title, b.kind, b.description, b.goal, b.style, b.sample, b.archived, now(), pid, user).run();
+                const b = projectSchema.extend({ version: z.number().int().positive('Recarga el proyecto antes de guardar.'), style: z.string().max(20000).default(''), sample: z.string().max(100000).default(''), archived: z.number().int().min(0).max(1).default(0) }).parse(await body(req));
+                const changed = await q('UPDATE projects SET title=?,kind=?,description=?,goal=?,style=?,sample=?,archived=?,updated=?,version=version+1 WHERE id=? AND owner=? AND version=?', b.title, b.kind, b.description, b.goal, b.style, b.sample, b.archived, now(), pid, user, b.version).run();
+                if (!changed.meta.changes) throw new ApiError(409, 'El proyecto cambió en otra pestaña. Conserva tus cambios y recarga antes de guardar.');
                 return json(await project(pid));
             }
             if (method === 'DELETE') {

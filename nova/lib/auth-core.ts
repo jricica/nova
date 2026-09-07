@@ -97,7 +97,7 @@ export async function handleAuth(req: Request, db: any) {
             throw new AuthError(503, 'El acceso está temporalmente indisponible.');
         const route = new URL(req.url).pathname.split('/').filter(Boolean).at(-1), method = req.method;
         if (method === 'GET' && route === 'me')
-            return reply({ user: await resolveUser(req.headers, db) });
+            return reply({ user: await resolveUser(req.headers, db), capabilities: { chatgpt: new URL(req.url).hostname.endsWith('.chatgpt.site') } });
         // SIWC owns provider authentication. This route only creates a NOVA session;
         // it never links accounts by email or changes ownership of existing records.
         const trustedSite = new URL(req.url).hostname.endsWith('.chatgpt.site');

@@ -13,7 +13,7 @@ export const authorSamples = sqliteTable('author_samples', {
     created: text('created').notNull(),
 }, t => [index('author_samples_owner').on(t.owner)]);
 export const projects = sqliteTable('projects', {
-    id: text('id').primaryKey(), owner: text('owner').notNull(), title: text('title').notNull(), kind: text('kind').notNull(), description: text('description').notNull().default(''), goal: integer('goal').notNull().default(50000), style: text('style').notNull().default(''), sample: text('sample').notNull().default(''), archived: integer('archived').notNull().default(0), created: text('created').notNull(), updated: text('updated').notNull(),
+    id: text('id').primaryKey(), owner: text('owner').notNull(), version: integer('version').notNull().default(1), title: text('title').notNull(), kind: text('kind').notNull(), description: text('description').notNull().default(''), goal: integer('goal').notNull().default(50000), style: text('style').notNull().default(''), sample: text('sample').notNull().default(''), archived: integer('archived').notNull().default(0), created: text('created').notNull(), updated: text('updated').notNull(),
 }, t => [index('projects_owner_updated').on(t.owner, t.updated)]);
 export const chapters = sqliteTable('chapters', {
     id: text('id').primaryKey(), project: text('project').notNull().references(() => projects.id, { onDelete: 'cascade' }), title: text('title').notNull(), content: text('content').notNull().default(''), position: integer('position').notNull(), version: integer('version').notNull().default(1), words: integer('words').notNull().default(0), updated: text('updated').notNull(),

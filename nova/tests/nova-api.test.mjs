@@ -52,6 +52,7 @@ test('NOVA API: ownership, persistence, versions, source retrieval, metrics and 
  const memory=await call(base+'/memory','POST',{kind:'personaje',title:'Adrián',content:'Lleva una carta.',date:'Capítulo 1'});assert.equal(memory.status,201);
  const project=(await call(base)).body;assert.equal(project.chapters.length,1);assert.equal(project.sources.length,1);assert.equal(project.memories.length,1);assert(!('object_key' in project.sources[0]));
  assert.equal((await call(base,'PATCH',{...project,style:'Tercera persona',sample:'Mi voz.',archived:1})).status,200);
+ assert.equal((await call(base,'PATCH',{...project,title:'Stale overwrite'})).status,409);assert.equal((await call(base)).body.style,'Tercera persona');assert.equal((await call(base)).body.version,2);
  const stats=(await call('stats')).body;assert.equal(stats.words,7);assert.equal(stats.sources,1);assert.equal(stats.memories,1);assert.equal(stats.activity[0].saves,1);
  const context=await call(base+'/context','POST',{chapterId:cid,action:'rewrite',instruction:'Explica la memoria diplomática'});assert.equal(context.status,200);assert.equal(context.body.context.manuscript.version,2);assert.equal(context.body.context.style.rules,'Tercera persona');assert.equal(context.body.context.passages.length,1);assert.equal(context.body.context.memory.length,1);
 

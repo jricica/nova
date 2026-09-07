@@ -13,6 +13,9 @@ test('Native auth: real password KDF, cookies, recovery, CSRF, isolation and leg
   const r=await mf.dispatchFetch('https://nova-test.chatgpt.site'+path,{method,headers:{origin:'https://nova-test.chatgpt.site','content-type':'application/json',cookie,'cf-connecting-ip':'192.0.2.1',...extra},body:body===undefined?undefined:JSON.stringify(body),redirect:'manual'});
   const text=await r.text();let data;try{data=JSON.parse(text)}catch{data=text}return {status:r.status,data,headers:r.headers,cookie:r.headers.get('set-cookie')?.split(';')[0]||''};
  }
+ const localCapabilities=await mf.dispatchFetch('https://nva-app.com/api/auth/me');assert.equal((await localCapabilities.json()).capabilities.chatgpt,false);
+ const providerCapabilities=await mf.dispatchFetch('https://nova-test.chatgpt.site/api/auth/me');assert.equal((await providerCapabilities.json()).capabilities.chatgpt,true);
+ const untrustedProvider=await mf.dispatchFetch('https://nva-app.com/api/auth/start-chatgpt',{method:'POST',headers:{origin:'https://nva-app.com'}});assert.equal(untrustedProvider.status,403);
  const pw='A secure test phrase 938',newpw='Another test phrase 492';
  assert.equal((await call('/api/auth/signup',{username:'alice',name:'Alice',password:pw},'',{origin:'https://evil.test'})).status,403);
  assert.equal((await call('/api/auth/signup',{username:'alice',name:'Alice',password:'short'})).status,400);
