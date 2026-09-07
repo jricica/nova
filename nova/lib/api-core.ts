@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { writingProvider } from './ai-provider';
 import { wordCount, normalize, splitText } from './text';
+import { authorDataSchema, emptyAuthor, profileRules } from './author-profile';
+import { accountSchema, defaultAccount } from './account';
 type Services = {
     DB: any;
     BUCKET: any;
@@ -56,6 +58,74 @@ export async function handleApi(req: Request, services: Services) {
             throw new ApiError(404, 'Proyecto no encontrado.'); return p; }
         async function chapter(pid: string, cid: string) { await project(pid); const c = await q('SELECT * FROM chapters WHERE id=? AND project=?', cid, pid).first(); if (!c)
             throw new ApiError(404, 'Capítulo no encontrado.'); return c; }
+        if (parts[0] === 'account' && parts.length === 1) {
+            let fullName: string | null = null;
+            if (req.headers.get('oai-authenticated-user-full-name-encoding') === 'percent-encoded-utf-8') {
+                try { fullName = decodeURIComponent(req.headers.get('oai-authenticated-user-full-name') || '') || null; } catch { /* Optional identity claim. */ }
+            }
+            const identity = { email: req.headers.get('oai-authenticated-user-email') || '', fullName };
+            if (method === 'GET') {
+                const row = await q('SELECT data,version,updated FROM accounts WHERE owner=?', user).first();
+                return json({ data: row ? accountSchema.parse(JSON.parse(row.data)) : defaultAccount(), version: row?.version || 0, updated: row?.updated || null, identity });
+            }
+            if (method === 'PUT') {
+                const b = z.object({ data: accountSchema, version: z.number().int().min(0) }).parse(await body(req));
+                const stamp = now(), content = JSON.stringify(b.data);
+                const result = b.version === 0
+                    ? await q('INSERT OR IGNORE INTO accounts(owner,data,version,updated) VALUES(?,?,1,?)', user, content, stamp).run()
+                    : await q('UPDATE accounts SET data=?,version=version+1,updated=? WHERE owner=? AND version=?', content, stamp, user, b.version).run();
+                if (!result.meta.changes) throw new ApiError(409, 'Tu perfil cambió en otra ventana. Copia tus cambios y recarga antes de guardar.');
+                return json({ data: b.data, version: b.version + 1, updated: stamp, identity });
+            }
+        }
+        if (parts[0] === 'author' && parts.length === 1) {
+            if (method === 'GET') {
+                const row = await q('SELECT * FROM author_profiles WHERE owner=?', user).first();
+                const samples = await all('SELECT id,title,kind,words,created FROM author_samples WHERE owner=? ORDER BY created DESC', user);
+                const data = row ? authorDataSchema.parse(JSON.parse(row.data)) : emptyAuthor();
+                const owned = new Set((await all('SELECT id FROM projects WHERE owner=?', user)).map((p: any) => p.id));
+                data.memories = data.memories.filter(m => !m.project || owned.has(m.project));
+                return json({ data, samples, version: row?.version || 0, confirmed: row?.confirmed || null, updated: row?.updated || null });
+            }
+            if (method === 'PUT') {
+                const b = z.object({ data: authorDataSchema, version: z.number().int().min(0), confirm: z.boolean().default(false) }).parse(await body(req));
+                for (const pid of new Set(b.data.memories.map(m => m.project).filter((v): v is string => !!v))) await project(pid);
+                if (new Set(b.data.memories.map(m => m.id)).size !== b.data.memories.length) throw new ApiError(400, 'Hay recuerdos duplicados.');
+                if (b.confirm && (!b.data.audience || !b.data.purpose)) throw new ApiError(400, 'Indica tu audiencia y tu objetivo antes de aprobar el perfil.');
+                const stamp = now();
+                const result = b.version === 0
+                  ? await q('INSERT OR IGNORE INTO author_profiles(owner,data,version,confirmed,updated) VALUES(?,?,1,?,?)', user, JSON.stringify(b.data), b.confirm ? stamp : null, stamp).run()
+                  : await q('UPDATE author_profiles SET data=?,version=version+1,confirmed=?,updated=? WHERE owner=? AND version=?', JSON.stringify(b.data), b.confirm ? stamp : null, stamp, user, b.version).run();
+                if (!result.meta.changes) throw new ApiError(409, 'Tu perfil cambió en otra ventana. Conserva tus cambios y recarga antes de guardar.');
+                return json({ version: b.version + 1, confirmed: b.confirm ? stamp : null, updated: stamp });
+            }
+        }
+        if (parts[0] === 'author-samples' && parts.length <= 2) {
+            if (parts.length === 1 && method === 'POST') {
+                const b = z.object({ title, kind: z.enum(['novela', 'ensayo', 'academico', 'habla']), content: z.string().trim().min(1).max(30000) }).parse(await body(req));
+                const sid = id(), key = `${user}/author-samples/${sid}.txt`, stamp = now();
+                await services.BUCKET.put(key, b.content, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } });
+                try {
+                    const result = await q('INSERT INTO author_samples(id,owner,title,kind,object_key,words,created) SELECT ?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM author_samples WHERE owner=?)<12', sid, user, b.title, b.kind, key, wordCount(b.content), stamp, user).run();
+                    if (!result.meta.changes) throw new ApiError(400, 'Puedes conservar hasta 12 muestras. Elimina una para añadir otra.');
+                } catch (e) { await services.BUCKET.delete(key); throw e; }
+                return json({ id: sid, title: b.title, kind: b.kind, words: wordCount(b.content), created: stamp }, 201);
+            }
+            if (parts[1]) {
+                const s = await q('SELECT * FROM author_samples WHERE id=? AND owner=?', parts[1], user).first();
+                if (!s) throw new ApiError(404, 'Muestra no encontrada.');
+                if (method === 'GET') {
+                    const file = await services.BUCKET.get(s.object_key);
+                    if (!file) throw new ApiError(503, 'No se pudo recuperar la muestra.');
+                    return json({ id: s.id, title: s.title, kind: s.kind, content: await file.text() });
+                }
+                if (method === 'DELETE') {
+                    await services.BUCKET.delete(s.object_key);
+                    await q('DELETE FROM author_samples WHERE id=? AND owner=?', s.id, user).run();
+                    return json({ ok: true });
+                }
+            }
+        }
         if (parts[0] === 'status' && method === 'GET')
             return json({ storage: true, ai: { available: writingProvider.available, reason: writingProvider.available ? 'Proveedor conectado' : 'Proveedor pendiente de integración' }, user: { email: req.headers.get('oai-authenticated-user-email') || '' } });
         if (parts[0] === 'stats' && method === 'GET') {
@@ -241,7 +311,14 @@ export async function handleApi(req: Request, services: Services) {
                 all('SELECT id,kind,title,content,date FROM memories WHERE project=? ORDER BY updated DESC LIMIT 30', pid),
                 terms.length ? all(`SELECT s.id sourceId,s.title,s.author,s.url,c.position,c.content FROM chunks c JOIN sources s ON s.id=c.source WHERE s.project=? AND (${terms.map(() => 'instr(c.search,?)>0').join(' OR ')}) ORDER BY c.position LIMIT 8`, pid, ...terms) : Promise.resolve([])
             ]);
-            const context = { action: input.action, instruction: input.instruction, manuscript: { id: ch.id, title: ch.title, content: ch.content.slice(-30000), version: ch.version }, project: { title: p.title, kind: p.kind, description: p.description }, style: { rules: p.style, sample: p.sample.slice(0, 12000) }, memory, passages };
+            const authorRow = await q('SELECT data,confirmed FROM author_profiles WHERE owner=?', user).first();
+            const author = authorRow?.confirmed ? authorDataSchema.parse(JSON.parse(authorRow.data)) : null;
+            const authorContext = author ? { rules: profileRules(author), exercise: author.genre === p.kind ? author.exercise.slice(0,4000) : '', preferences: author.memories.filter(m => m.enabled && (!m.project || m.project === pid)).sort((a,b) => Number(!!b.project)-Number(!!a.project)).slice(0,30).map(m => ({ content: m.content, scope: m.project ? 'project' : 'author' })), examples: [] as Array<{title:string;content:string}> } : null;
+            if (authorContext) {
+                const samples = await all('SELECT title,object_key FROM author_samples WHERE owner=? AND kind=? ORDER BY created DESC LIMIT 2', user, p.kind);
+                for (const sample of samples) { const object = await services.BUCKET.get(sample.object_key); if (object) authorContext.examples.push({ title: sample.title, content: (await object.text()).slice(0,4000) }); }
+            }
+            const context = { action: input.action, instruction: input.instruction, manuscript: { id: ch.id, title: ch.title, content: ch.content.slice(-30000), version: ch.version }, project: { title: p.title, kind: p.kind, description: p.description }, style: { rules: p.style, sample: p.sample.slice(0, 12000) }, author: authorContext, memory, passages };
             if (section === 'context')
                 return json({ context, limits: { manuscriptCharacters: 30000, styleSampleCharacters: 12000, memoryEntries: 30, passages: 8 }, retrieval: 'lexical' });
             return json({ proposal: await writingProvider.generate(context), basedOnVersion: ch.version });

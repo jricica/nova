@@ -45,3 +45,26 @@ Deletion removes metadata and attempts R2 cleanup; cleanup errors are logged. No
 ## Development and verification
 
 Keep the supplied lockfile. `npm run db:generate` generates new immutable migration files. Use Sites build/hosting skills for deployment; platform supplies D1 and R2 resources. `npm run build` compiles the Worker and browser assets. `node --test tests/nova-api.test.mjs` runs against Miniflare D1/R2, testing persistence, access isolation, cross-origin rejection, conflicts, search, style/memory context, metrics, exports, cascades and object cleanup without contacting an LLM.
+
+## Perfil de autor y memoria guiada
+
+- `/mi-voz`: cuatro pasos con audiencia/objetivo, tono y ritmo, muestras de texto, ejercicios de una biblioteca de plantillas y aprobación explícita del perfil. Permite guardar borrador y retomar en otra sesión. El resumen se construye de forma determinista a partir de las respuestas; no infiere estilo ni genera prosa con IA.
+- `/mi-memoria`: preferencias generales o por proyecto, con edición, activación/desactivación y eliminación al guardar. Son declaradas por el usuario, no hechos verificados. Los datos de ficción siguen en la memoria de cada proyecto.
+- Se admiten 12 muestras por usuario, cada una de hasta 30.000 caracteres. TXT/MD UTF-8 o texto pegado. El habla se admite como transcripción pegada; no hay grabación, transcripción automática ni lectura de PDF/DOCX.
+- D1 guarda perfiles versionados y metadatos; R2 guarda el texto de las muestras. Las escrituras del perfil usan comparación de versión: un guardado obsoleto devuelve 409 y conserva el borrador en la interfaz. El origen y la identidad se validan en el backend; los proyectos referidos deben pertenecer al usuario.
+- `GET/PUT /api/nova/author` carga y guarda el perfil. `POST /api/nova/author-samples` guarda una muestra; `GET/DELETE /api/nova/author-samples/:id` la consulta/elimina.
+- El contexto existente incluye únicamente perfiles aprobados, preferencias activas globales o del proyecto y hasta dos muestras escritas del mismo género (4.000 caracteres por muestra), además del ejercicio del género correspondiente (hasta 4.000 caracteres). Las muestras de habla nunca se mezclan automáticamente con escritura. Los borradores de perfil no se usan como preferencias aprobadas.
+- Cambiar el perfil y guardar borrador requiere aprobarlo nuevamente. Guardar cambios explícitos de memoria conserva la aprobación existente. Las muestras se guardan por separado y quedan disponibles como referencias aportadas por el autor.
+- Al conectar el proveedor, deberá aplicar precedencia explícita: instrucción actual, reglas de proyecto y luego preferencias generales. Textos y recuerdos son datos, nunca instrucciones con privilegios de sistema. No se ha conectado ni entrenado un LLM y no hay llamadas externas ni credenciales nuevas.
+- La prueba de API cubre persistencia, aislamiento de perfiles/muestras entre usuarios, origen, conflictos de versión, alcance de proyecto, exclusión de recuerdos desactivados, borradores y eliminación de muestras/recuerdos del contexto.
+
+## Cuenta y presentación profesional
+
+- `/perfil` administra nombre visible, ocupación, biografía, tipografía y tamaño del manuscrito y meta inicial de proyectos. D1 conserva estos datos por usuario con control de versión; no modifica la identidad de ChatGPT ni el perfil de voz del autor.
+- `GET/PUT /api/nova/account` obtiene/actualiza la cuenta autenticada. El servidor obtiene el correo y el nombre de identidad de las cabeceras de sesión, no del formulario. Los valores inválidos devuelven 400 y los guardados obsoletos, 409.
+- El menú de usuario y la barra lateral incluyen el cierre de sesión real mediante navegación superior a `/signout-with-chatgpt?return_to=%2F`, gestionada por el dispatcher. No se guarda ni se simula una sesión en localStorage. La política de acceso privado del Site sigue vigente; después de salir, el acceso puede volver a solicitar autenticación.
+- El contexto de cuenta compartido aplica tipografía/tamaño al manuscrito y la meta al formulario de proyectos nuevos. La biografía no se envía automáticamente al contexto del LLM.
+- `/ajustes` organiza cuenta, personalización, funciones y exportación. `/ayuda` documenta el guardado manual, historial, formatos, conflictos y cierre de sesión. Hay un estado de desconexión y una frontera de errores del espacio de trabajo.
+- La biblioteca conserva sus acciones y añade ordenación por actualización, título o palabras. La interfaz usa una presentación de lista adaptable a móvil con cifras obtenidas de los proyectos reales.
+- El tema se define en `app/professional.css`, sobre los componentes existentes: blanco, azul tinta, controles consistentes, navegación de cuenta y tipografía editorial solo donde corresponde. Incluye enlace para saltar al contenido, foco visible, tamaños táctiles y preferencias de movimiento reducido.
+- Verificación: TypeScript, compilación de producción y pruebas de API con D1/R2 locales, incluyendo persistencia/aislamiento de cuenta, validación, origen y versiones. No se realizaron pruebas de navegador ni del cierre de sesión de producción.

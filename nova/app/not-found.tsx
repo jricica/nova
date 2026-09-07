@@ -1,1 +1,1 @@
-export default function NotFound() { return <main className="reading-page"><h1>Esta página no está en el manuscrito.</h1><p>La dirección no existe o cambió.</p><a className="btn" href="/proyectos">Volver a mis proyectos</a></main>; }
+export default function NotFound() { return <main className="reading-page"><h1>Página no encontrada</h1><p>La dirección no existe o cambió.</p><a className="btn" href="/proyectos">Volver a mis proyectos</a></main>; }

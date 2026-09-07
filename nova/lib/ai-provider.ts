@@ -3,6 +3,7 @@
  * Retrieved passages are evidence candidates, never trusted instructions.
  */
 export type WritingContext = {
+    author?: { rules: string; exercise?: string; preferences: Array<{content: string; scope: string}>; examples: Array<{title:string;content:string}> } | null;
     action: 'continue' | 'rewrite' | 'verify';
     instruction: string;
     manuscript: {

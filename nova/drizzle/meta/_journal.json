@@ -8,6 +8,20 @@
       "when": 1788636900847,
       "tag": "0000_breezy_timeslip",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788743647758,
+      "tag": "0001_tiny_starjammers",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788744714763,
+      "tag": "0002_fine_molecule_man",
+      "breakpoints": true
     }
   ]
 }

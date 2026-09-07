@@ -8,7 +8,7 @@ export default function Style({ project: p, reload }: {
     project: any;
     reload: () => Promise<void>;
 }) { const [rules, setRules] = useState(p.style), [sample, setSample] = useState(p.sample), [busy, setBusy] = useState(false); const dirty = rules !== p.style || sample !== p.sample; useEffect(() => { if (!dirty)
-    return; const stop = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; }; window.addEventListener('beforeunload', stop); return () => window.removeEventListener('beforeunload', stop); }, [dirty]); const a = analyze(sample); return <><div className="section-top"><div><h2>Una voz que sigue siendo tuya.</h2><p>Conserva tus criterios de estilo y un fragmento representativo para este proyecto.</p></div><Feather size={30} strokeWidth={1}/></div><form className="style-layout" onSubmit={async (e) => { e.preventDefault(); setBusy(true); try {
+    return; const stop = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; }; window.addEventListener('beforeunload', stop); return () => window.removeEventListener('beforeunload', stop); }, [dirty]); const a = analyze(sample); return <><div className="section-top"><div><h2>Estilo del proyecto</h2><p>Conserva tus criterios de estilo y un fragmento representativo para este proyecto.</p><a href="/mi-voz" className="help-link">Configurar mi voz general →</a></div><Feather size={30} strokeWidth={1}/></div><form className="style-layout" onSubmit={async (e) => { e.preventDefault(); setBusy(true); try {
     await api('projects/' + p.id, 'PATCH', { ...p, style: rules, sample });
     await reload();
     toast.success('Perfil de voz guardado.');

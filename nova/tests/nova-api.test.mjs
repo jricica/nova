@@ -13,6 +13,17 @@ test('NOVA API: ownership, persistence, versions, source retrieval, metrics and 
  assert.equal((await call('projects','GET',undefined,'')).status,401);
  assert.equal((await call('projects','POST',{title:'Bad',kind:'novela'},'alice','https://evil.test')).status,403);
  assert.equal((await call('projects','POST',{title:'',kind:'novela'})).status,400);
+
+ const account=(await call('account')).body;assert.equal(account.version,0);assert.equal(account.identity.email,'alice@example.test');assert.equal(account.data.typography,'serif');
+ const accountDraft={...account.data,displayName:'Autora Alice',occupation:'Investigadora',bio:'Escribo ensayos.',typography:'sans',textSize:'large',defaultGoal:12000};
+ const savedAccount=await call('account','PUT',{data:accountDraft,version:0});assert.equal(savedAccount.status,200);assert.equal(savedAccount.body.version,1);
+ assert.equal((await call('account')).body.data.displayName,'Autora Alice');assert.equal((await call('account')).body.data.defaultGoal,12000);
+ assert.equal((await call('account','GET',undefined,'bob')).body.data.displayName,'');
+ assert.equal((await call('account','GET',undefined,'')).status,401);
+ assert.equal((await call('account','PUT',{data:accountDraft,version:1},'alice','https://evil.test')).status,403);
+ assert.equal((await call('account','PUT',{data:accountDraft,version:0})).status,409);
+ assert.equal((await call('account','PUT',{data:{...accountDraft,defaultGoal:-1},version:1})).status,400);
+ assert.equal((await call('account','PUT',{data:{...accountDraft,displayName:'A'.repeat(101)},version:1})).status,400);
  const created=await call('projects','POST',{title:'La ciudad y la memoria',kind:'novela',goal:1000});assert.equal(created.status,201);const pid=created.body.id,base='projects/'+pid;
  assert.equal((await call(base,'GET',undefined,'bob')).status,404);
  const ch=await call(base+'/chapters','POST',{title:'La llegada'});assert.equal(ch.status,201);const cid=ch.body.id;
@@ -30,6 +41,27 @@ test('NOVA API: ownership, persistence, versions, source retrieval, metrics and 
  assert.equal((await call(base,'PATCH',{...project,style:'Tercera persona',sample:'Mi voz.',archived:1})).status,200);
  const stats=(await call('stats')).body;assert.equal(stats.words,7);assert.equal(stats.sources,1);assert.equal(stats.memories,1);assert.equal(stats.activity[0].saves,1);
  const context=await call(base+'/context','POST',{chapterId:cid,action:'rewrite',instruction:'Explica la memoria diplomática'});assert.equal(context.status,200);assert.equal(context.body.context.manuscript.version,2);assert.equal(context.body.context.style.rules,'Tercera persona');assert.equal(context.body.context.passages.length,1);assert.equal(context.body.context.memory.length,1);
+
+ const fresh=(await call('author')).body;assert.equal(fresh.version,0);
+ const profileData={...fresh.data,audience:'Estudiantes',purpose:'Explicar con claridad',exercise:'Mi ejercicio personal.',memories:[{id:crypto.randomUUID(),content:'Evitar anglicismos',project:null,enabled:true,updated:new Date().toISOString()},{id:crypto.randomUUID(),content:'Preferencia inactiva',project:null,enabled:false,updated:new Date().toISOString()}]};
+ assert.equal((await call('author','PUT',{version:0,data:profileData,confirm:true})).status,200);
+ assert.equal((await call('author','PUT',{version:0,data:profileData,confirm:true})).status,409);
+ assert.equal((await call('author','GET',undefined,'bob')).body.version,0);
+ assert.equal((await call('author','PUT',{version:0,data:{...profileData,memories:[{...profileData.memories[0],project:pid}]},confirm:true},'bob')).status,404);
+ assert.equal((await call('author','PUT',{version:1,data:profileData,confirm:true},'alice','https://evil.test')).status,403);
+ const sample=await call('author-samples','POST',{title:'Voz propia',kind:'novela',content:'Mi forma de narrar una historia.'});assert.equal(sample.status,201);
+ assert.equal((await call('author-samples/'+sample.body.id,'GET',undefined,'bob')).status,404);
+ assert.equal((await call('author-samples/'+sample.body.id,'DELETE',undefined,'bob')).status,404);
+ const voiceContext=(await call(base+'/context','POST',{chapterId:cid,action:'rewrite',instruction:'Reescribir'})).body.context.author;
+ assert(voiceContext.rules.includes('Estudiantes'));assert.equal(voiceContext.preferences.length,1);assert.equal(voiceContext.examples[0].content,'Mi forma de narrar una historia.');
+ assert.equal((await call('author-samples/'+sample.body.id,'DELETE')).status,200);
+ assert.equal((await call('author-samples/'+sample.body.id)).status,404);
+ assert.equal((await call('author')).body.samples.length,0);
+ assert.equal((await call('author','PUT',{version:1,data:{...profileData,memories:[]},confirm:true})).status,200);
+ const cleared=(await call(base+'/context','POST',{chapterId:cid,action:'rewrite',instruction:'Reescribir'})).body.context.author;
+ assert.equal(cleared.preferences.length,0);assert.equal(cleared.examples.length,0);
+ assert.equal((await call('author','PUT',{version:2,data:profileData,confirm:false})).status,200);
+ assert.equal((await call(base+'/context','POST',{chapterId:cid,action:'rewrite',instruction:'Reescribir'})).body.context.author,null);
  const exported=await call(base+'/export?format=json');assert.equal(exported.status,200);assert(exported.body.sources[0].content.includes('Viena'));assert.equal(exported.body.project.owner,undefined);
  assert((await call(base+'/export')).body.includes('## La llegada'));
  assert.equal((await call(base+'/ai','POST',{chapterId:cid,action:'continue',instruction:'Continúa con la memoria diplomática'})).status,503);

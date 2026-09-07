@@ -1,4 +1,17 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+export const accounts = sqliteTable('accounts', {
+    owner: text('owner').primaryKey(), data: text('data').notNull(),
+    version: integer('version').notNull().default(1), updated: text('updated').notNull(),
+});
+export const authorProfiles = sqliteTable('author_profiles', {
+    owner: text('owner').primaryKey(), data: text('data').notNull(), version: integer('version').notNull().default(1),
+    confirmed: text('confirmed'), updated: text('updated').notNull(),
+});
+export const authorSamples = sqliteTable('author_samples', {
+    id: text('id').primaryKey(), owner: text('owner').notNull(), title: text('title').notNull(),
+    kind: text('kind').notNull(), object_key: text('object_key').notNull(), words: integer('words').notNull(),
+    created: text('created').notNull(),
+}, t => [index('author_samples_owner').on(t.owner)]);
 export const projects = sqliteTable('projects', {
     id: text('id').primaryKey(), owner: text('owner').notNull(), title: text('title').notNull(), kind: text('kind').notNull(), description: text('description').notNull().default(''), goal: integer('goal').notNull().default(50000), style: text('style').notNull().default(''), sample: text('sample').notNull().default(''), archived: integer('archived').notNull().default(0), created: text('created').notNull(), updated: text('updated').notNull(),
 }, t => [index('projects_owner_updated').on(t.owner, t.updated)]);
